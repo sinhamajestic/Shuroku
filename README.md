@@ -1,264 +1,205 @@
-# Shuroku — Your Personal Anime Library & Watch Progress Tracker
+# Shuroku — 収録
 
-*Shuroku* (収録) — “to record, compile, collect.”
-Inspired by this Japanese concept, Shuroku is a clean, modern space to **search**, **save**, **track**, and **watch** your favourite anime from one unified dashboard.
+*Shuroku* (収録, "to record, compile, collect") is a personal anime library and watch-progress tracker. Search any anime, add it to your library, track episodes, organize collections, and keep a list of where to watch it, all from one calm dashboard.
 
-Search any anime. Add it with one click. Track your episodes. Organize collections. Discover free/paid sources.
-Users can also add their own free sources, helping the community discover legal places to watch.
+Multi-user with accounts, no payments, no paywall. Built to be run by you and shared with a few people for feedback.
 
----
+This repo is a two-package monorepo:
 
-## 🚀 Key Features
-
-### 🔍 Powerful, Fast Search
-
-* Lightning-fast fuzzy search (Meilisearch + AniList API)
-* Real-time suggestions with posters & titles
-* Clean results grid with a one-tap **Add to Library** button
-
-### 📚 Personal Anime Library
-
-* Add anime instantly with a single click
-* Track statuses: **Watching · Completed · Plan to Watch · Paused**
-* Create custom collections (*Weekend Binge*, *2025 Marathon*, etc.)
-* Reorder, rename, and personalise lists
-
-### 🎯 Watch Progress Tracking
-
-* Track progress per season/episode
-* Quick update from tiles or the details page
-* Auto-sync progress across devices
-* Optional notes & ratings
-
-### 🎥 Free & Paid Watch Sources (User-Addable)
-
-* View verified free & paid sources for each anime
-* Redirect to official paid platforms (Crunchyroll, Netflix, Prime Video, etc.)
-* Open embeddable free sources inside the app (when supported)
-* Users can add new free sources (flagged as **Unverified User Sources**)
-
-### ✨ Clean, Modern UI
-
-* Minimal, fast, mobile-first experience
-* Smooth interactions with thoughtful UX details
-* Built for performance and simplicity
-
-### 📦 Export / Backup
-
-* Export your entire library as JSON
-* Import anytime to restore lists and progress
+- `backend/` — Fastify + TypeScript + Prisma + PostgreSQL API
+- `frontend/` — Next.js 15 (App Router) + Tailwind, the "Ink & Vermillion Archive" design
 
 ---
 
-## 🧩 Tech Stack (Modern & Opinionated)
+## Stack
 
-### **Frontend**
+**Frontend**
+- Next.js 15 (App Router) + React + TypeScript
+- Tailwind CSS
+- TanStack React Query for server state (no Zustand; UI state is React context)
 
-* **Next.js 15** (App Router)
-* **React + TypeScript**
-* **Tailwind CSS**
-* **React Query** (server state management)
-* **Zustand** (UI state)
+**Backend**
+- Fastify (TypeScript, ESM) with Zod-validated routes
+- Prisma ORM + PostgreSQL (local Docker, or Neon / Supabase free tier)
 
-### **Backend**
+**Search**
+- PostgreSQL `pg_trgm` trigram match over cached titles (no external search service)
 
-* **Fastify (TypeScript)**
-* **Prisma ORM**
-* **PostgreSQL** (Supabase / Neon)
+**Auth**
+- Email and password with argon2 hashing
+- Short-lived JWT access token + rotating refresh token in an httpOnly cookie
+- No OAuth provider; no NextAuth or Clerk
 
-### **Search**
-
-* **Meilisearch** for fast fuzzy search
-
-### **Auth**
-
-* Email/Password + OAuth (Google/GitHub) via **NextAuth** or **Clerk**
-
-### **External Services**
-
-* **AniList GraphQL API** / **Jikan API** for metadata
-* **Upstash Redis** for background jobs
-* **Cloudinary** for image optimization
+**Metadata and images**
+- AniList GraphQL API (free, no key) for metadata
+- Cover and banner images hotlinked from the AniList CDN (no Cloudinary)
 
 ---
 
-## 📐 System Architecture — Visual Overview
+## Architecture
 
 ```mermaid
 flowchart TD
-  classDef client fill:#f3f4ff,stroke:#8b5cf6,stroke-width:1px
-  classDef frontend fill:#fff7ed,stroke:#f97316,stroke-width:1px
-  classDef backend fill:#ecfeff,stroke:#06b6d4,stroke-width:1px
-  classDef data fill:#f0fdf4,stroke:#10b981,stroke-width:1px
-  classDef search fill:#fff1f2,stroke:#ef4444,stroke-width:1px
-  classDef ext fill:#f8fafc,stroke:#64748b,stroke-width:1px
-  classDef jobs fill:#fff7f0,stroke:#c084fc,stroke-width:1px
+  classDef client fill:#211C19,stroke:#A8987F,color:#F5EFE4
+  classDef fe fill:#1A1614,stroke:#E8482B,color:#F5EFE4
+  classDef be fill:#1A1614,stroke:#7E9B5A,color:#F5EFE4
+  classDef data fill:#14110F,stroke:#4A6FA5,color:#F5EFE4
+  classDef ext fill:#14110F,stroke:#8A7F73,color:#F5EFE4
 
-  subgraph B["User Environment"]
-    A["User's Browser<br/>(Next.js Client / PWA)"]:::client
-  end
+  A["Browser<br/>Next.js client"]:::client
+  F["Next.js (Vercel or Node)<br/>App Router, React Query"]:::fe
+  S["Fastify API<br/>/api/v1, JWT + refresh cookie"]:::be
+  P["PostgreSQL (Prisma)<br/>pg_trgm trigram search"]:::data
+  AN["AniList GraphQL<br/>metadata source"]:::ext
 
-  subgraph FE["Frontend (Vercel)"]
-    F1["Next.js (App Router)<br/>SSR + UI Rendering"]:::frontend
-  end
-
-  subgraph BE["Backend API Layer"]
-    S["Fastify API<br/>(TypeScript, Docker)"]:::backend
-  end
-
-  subgraph DB["Data Layer"]
-    P["PostgreSQL (Prisma)<br/>Supabase / Neon"]:::data
-    M["Meilisearch<br/>Search Index"]:::search
-  end
-
-  subgraph EXT["External Services"]
-    AN["AniList / Jikan<br/>Metadata Source"]:::ext
-    IMG["Cloudinary / CDN<br/>Images"]:::ext
-  end
-
-  subgraph WORKERS["Background Workers"]
-    W["Redis Queue + Workers<br/>Indexing, Verification"]:::jobs
-  end
-
-  A -->|1. User Actions| F1
-  F1 -->|2. API Calls| S
-  S -->|3a. Read/Write| P
-  S -->|3b. Search Query| M
-  S -->|3c. Fetch Metadata| AN
-  S -->|3d. Serve Images| IMG
-  S -->|4. Enqueue Jobs| W
-  W -->|5. Update Index| M
-  AN -->|6. Metadata Payload| P
-  P -->|7. Persistent Data| S
-  M -->|8. Search Results| S
-  S -->|9. API Response| F1
-  F1 -->|10. Render UI| A
+  A -->|1. user actions| F
+  F -->|2. fetch /api/v1, bearer + cookie| S
+  S -->|3. read / write| P
+  S -->|4. trigram query| P
+  S -->|5. hydrate on cache-miss| AN
+  AN -->|6. media payload, upserted| P
+  S -->|7. JSON response| F
+  F -->|8. render| A
 ```
+
+AniList hydration on a search cache-miss is synchronous today. If AniList latency shows up under real use, move it to a job queue (see Possible future direction).
 
 ---
 
-## 🔐 Auth Flow (Detailed)
+## Auth flow
 
 ```mermaid
 sequenceDiagram
-  participant U as User Browser
+  participant U as Browser
   participant FE as Frontend (Next.js)
   participant BE as Backend (Fastify)
-  participant IDP as OAuth Provider (Google/GitHub/Clerk)
-  participant DB as Postgres (Sessions)
+  participant DB as Postgres (Session table)
 
-  U->>FE: 1. Clicks "Sign In"
-  FE->>IDP: 2. Redirect to Provider
-  IDP-->>U: 3. Provider Login UI
-  U->>IDP: 4. User Authenticates
-  IDP-->>FE: 5. Redirect with Auth Code
-  FE->>BE: 6. Exchange Code for Token
-  BE->>IDP: 7. Validate Token & Fetch Profile
-  BE->>DB: 8. Create/Update Session
-  BE-->>FE: 9. Return Session Token
-  FE-->>U: 10. Render Authenticated State
+  U->>FE: 1. Submit email + password
+  FE->>BE: 2. POST /auth/login
+  BE->>DB: 3. Verify argon2 hash, create Session
+  BE-->>FE: 4. accessToken (15m) + httpOnly refresh cookie
+  Note over FE: access token kept in memory
+  FE->>BE: 5. Authed requests, Authorization: Bearer
+  BE-->>FE: 6. 401 when access token expires
+  FE->>BE: 7. POST /auth/refresh (cookie sent automatically)
+  BE->>DB: 8. Rotate: delete old Session, issue new one
+  BE-->>FE: 9. New accessToken, retry original request
 ```
 
 ---
 
-## 🗂 Proposed Folder Structure
+## Folder structure
 
 ```
-/shuroku
-│
-├── app/                 # Next.js frontend
-├── src/                 # Fastify backend
-├── prisma/              # Schema + migrations
-├── public/              # Static assets
-├── docs/                # PRD, system design, API specs
-├── design/              # Wireframes / figma
-└── README.md
+shuroku/
+├── backend/                 # Fastify API
+│   ├── prisma/              # schema, seed, trigram SQL
+│   │   ├── schema.prisma
+│   │   ├── seed.ts
+│   │   └── sql/add_trgm_search.sql
+│   ├── src/
+│   │   ├── app.ts           # plugins, error envelope, route registration
+│   │   ├── server.ts
+│   │   ├── env.ts
+│   │   ├── lib/             # prisma client, AniList client
+│   │   ├── plugins/auth.ts  # JWT verify + requireAuth
+│   │   └── routes/          # auth, search, anime, library, collections, sources, export
+│   ├── docker-compose.yml   # local Postgres
+│   └── README.md
+├── frontend/                # Next.js app
+│   ├── src/
+│   │   ├── app/             # routes: /, /anime/[id], /collections, /search, /settings, /login, /register
+│   │   ├── components/      # shell, ui, palette, collection picker
+│   │   ├── lib/             # api client, hooks, auth, theme, toast
+│   │   └── types/api.ts
+│   └── README.md
+└── README.md                # this file
 ```
 
 ---
 
-## 🧭 Core User Flows
+## Run order
 
-* Search any anime
-* Add to your library with one click
-* Open detailed page → synopsis, metadata, sources
-* Track episodes with season/episode picker
-* Create & manage collections
-* Add free streaming sources
-* Redirect to official paid platforms
-* Export your entire library
-
----
-
-## 📊 Roadmap
-
-### **MVP**
-
-* Search (typeahead + grid)
-* Library management
-* Watch progress tracking
-* Collections (CRUD)
-* Anime detail pages
-* Free/Paid source viewer
-* User-added sources
-* OAuth + Email/Password login
-* Export/Import
-
-### **v1.1**
-
-* Recommendations (tag-based)
-* Recently Watched
-* Episode reminders
-
-### **v1.2**
-
-* Public collections (shareable)
-* Offline mode (PWA)
-
----
-
-## ⚙️ Local Development
+Backend first, frontend second.
 
 ```bash
-git clone https://github.com/your-username/shuroku
-cd shuroku
+# 1. Backend (http://localhost:4000)
+cd backend
+docker compose up -d                      # local Postgres
 npm install
-
-# Frontend
+cp .env.example .env                      # set JWT_SECRET to 32+ chars
+npx prisma migrate dev --name init
+npx prisma migrate dev --create-only --name add_trgm_search
+#   paste backend/prisma/sql/add_trgm_search.sql into the generated migration.sql
+npx prisma migrate dev
+npm run seed                              # me@shuroku.local / changeme123
 npm run dev
 
-# Backend (separate terminal)
-npm run api
+# 2. Frontend (http://localhost:3000), separate terminal
+cd frontend
+npm install
+cp .env.local.example .env.local          # NEXT_PUBLIC_API_URL defaults to the backend
+npm run dev
 ```
 
-**Setup:**
+Full per-package detail lives in `backend/README.md` and `frontend/README.md`.
 
-* Create `.env` with DB, Meilisearch, and OAuth keys
-* Run `npx prisma migrate dev` to initialize the database
+### Environment
+
+Backend `.env`: `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGIN`, `PORT`, `NODE_ENV`, `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL_DAYS`, `COOKIE_SAMESITE`. No Meilisearch or OAuth keys are needed.
+
+Frontend `.env.local`: `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:4000/api/v1`).
+
+Local dev is same-site, so the default `lax` cookie works. For a cross-domain production deploy, set `COOKIE_SAMESITE=none` (which forces Secure, so both sides must be HTTPS) and add the frontend origin to `CORS_ORIGIN`.
 
 ---
 
-## 📜 License
+## Features
+
+- Account sign-up and login, with sessions that persist across devices
+- Search via cached trigram match, falling back to AniList and caching the result
+- Library with status (Watching, Completed, Plan to Watch, Paused), per-episode progress, rating, and notes
+- One-tap "+1 episode" with optimistic update, on cards and the detail page
+- Collections: create, delete, and add or remove titles from the detail page
+- Sources per anime: official and free, with user-added entries flagged by submitter
+- Continue Watching rail, grid and list views, light and dark themes
+- Command palette (⌘K) for fast search and quick-add
+- JSON export and import of your library from Settings
+
+Sources currently open in a new tab. The schema carries an `embeddable` flag, but in-app embedded playback is not implemented yet.
+
+---
+
+## API
+
+All routes are under `/api/v1`. The full table, including auth requirements, is in `backend/README.md`. Summary: auth (`register`, `login`, `refresh`, `logout`, `me`), `search`, `anime/:id`, `library` CRUD plus `increment`, `collections` CRUD plus item add/remove, `anime/:id/sources` and `sources/:id`, and `export` / `import`.
+
+---
+
+## Possible future direction
+
+Not built yet. Listed so the intent is on record, not as current behavior.
+
+- Tag-based recommendations (genres are already stored per title)
+- Stats and insights view (episodes watched, completion rate, watch heatmap)
+- AniList list import keyed by `anilistId` to remove cold-start friction
+- Episode reminders for airing shows (needs a background job layer such as Upstash QStash)
+- Public, shareable collections
+- PWA / offline mode, and eventually a mobile app reusing the same API
+- Move synchronous AniList hydration to a job queue; add a cron to purge expired sessions
+- Introduce Meilisearch only if trigram search quality draws complaints
+
+---
+
+## Legal
+
+Shuroku does not host copyrighted content. User-submitted sources are stored as unverified entries identified by their submitter. Official platforms are reached by ordinary links.
+
+## License
 
 All rights reserved. See `LICENSE.txt` for full terms.
 
----
+## Author
 
-## 🛡 Legal Notice
-
-Shuroku **does not host copyrighted content**.
-User-submitted URLs are marked as **Unverified User Sources**.
-Paid services use official redirect / deep-link flows.
-
----
-
-## 🤝 Contributing
-
-PRs and suggestions are welcome!
-See `/docs/contributing.md` (coming soon).
-
----
-
-## ✨ Author
-
-Built by **Aditya Sinha** — exploring PM + engineering through real-world product builds.
+Built by Aditya Sinha.
