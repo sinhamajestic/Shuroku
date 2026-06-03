@@ -4,7 +4,9 @@ services:
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm install && npx prisma generate && npm run build
+    # --include=dev forces devDependencies (typescript, @types/node) during build,
+    # which NODE_ENV=production would otherwise skip. Runtime stays production.
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
@@ -13,8 +15,8 @@ services:
       - key: COOKIE_SAMESITE
         value: none
       - key: JWT_SECRET
-        generateValue: true        # Render generates a long random secret
+        generateValue: true
       - key: DATABASE_URL
-        sync: false                # set manually: your Neon connection string
+        sync: false
       - key: CORS_ORIGIN
-        sync: false                # set manually: your Vercel URL, after first deploy
+        sync: false
