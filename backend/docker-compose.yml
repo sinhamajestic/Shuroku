@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: shuroku-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shuroku
+      POSTGRES_PASSWORD: shuroku
+      POSTGRES_DB: shuroku
+    ports:
+      - "5432:5432"
+    volumes:
+      - shuroku_pgdata:/var/lib/postgresql/data
+
+volumes:
+  shuroku_pgdata:

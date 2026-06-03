@@ -1,0 +1,139 @@
+// Shuroku — multi-user schema (auth on, no billing/paywall).
+// Anime + Source are global; LibraryItem + Collection are per-user.
+// Search: Postgres pg_trgm on Anime titles (no Meilisearch at this scale).
+//
+// After first migration, create an empty migration and add:
+//   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+//   CREATE INDEX anime_title_trgm  ON "Anime" USING GIN (title gin_trgm_ops);
+//   CREATE INDEX anime_romaji_trgm ON "Anime" USING GIN ("titleRomaji" gin_trgm_ops);
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime      @default(now())
+  libraryItems LibraryItem[]
+  collections  Collection[]
+  sessions     Session[]
+  sources      Source[]
+}
+
+// Refresh-token sessions for rotation/revocation. Access tokens are short-lived JWTs.
+model Session {
+  id                String   @id @default(cuid())
+  userId            String
+  refreshTokenHash  String   @unique
+  userAgent         String?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Canonical anime metadata, cached from AniList. Global/shared.
+model Anime {
+  id           String        @id @default(cuid())
+  anilistId    Int           @unique
+  title        String
+  titleRomaji  String?
+  titleEng     String?
+  titleNative  String?
+  synopsis     String?
+  coverUrl     String?       // hotlink AniList CDN, no Cloudinary
+  bannerUrl    String?
+  year         Int?
+  episodes     Int?
+  format       String?       // TV / MOVIE / OVA / ONA
+  status       String?       // RELEASING / FINISHED / NOT_YET_RELEASED
+  genres       String[]
+  popularity   Int?          // AniList popularity, for search ranking
+  averageScore Int?
+  fetchedAt    DateTime      @default(now())
+  libraryItems LibraryItem[]
+  sources      Source[]
+
+  @@index([anilistId])
+  @@index([popularity])
+}
+
+model LibraryItem {
+  id         String           @id @default(cuid())
+  userId     String
+  animeId    String
+  status     WatchStatus      @default(PLAN_TO_WATCH)
+  progressEp Int              @default(0)
+  season     Int              @default(1)
+  rating     Int?
+  notes      String?
+  addedAt    DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anime       Anime           @relation(fields: [animeId], references: [id])
+  collections CollectionItem[]
+
+  @@unique([userId, animeId]) // can't add the same anime twice
+  @@index([userId, status])
+}
+
+enum WatchStatus {
+  WATCHING
+  COMPLETED
+  PLAN_TO_WATCH
+  PAUSED
+}
+
+model Collection {
+  id        String           @id @default(cuid())
+  userId    String
+  name      String
+  order     Int              @default(0)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CollectionItem[]
+
+  @@index([userId])
+}
+
+model CollectionItem {
+  id            String      @id @default(cuid())
+  collectionId  String
+  libraryItemId String
+  order         Int         @default(0)
+  collection    Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  libraryItem   LibraryItem @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, libraryItemId])
+  @@index([collectionId])
+}
+
+model Source {
+  id          String     @id @default(cuid())
+  animeId     String
+  kind        SourceKind @default(FREE)
+  label       String     // "Crunchyroll", site name, etc
+  url         String
+  embeddable  Boolean    @default(false)
+  submittedBy String?    // userId of adder, null for seeded
+  createdAt   DateTime   @default(now())
+  anime       Anime      @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  user        User?      @relation(fields: [submittedBy], references: [id])
+
+  @@index([animeId, kind])
+}
+
+enum SourceKind {
+  PAID
+  FREE
+}
