@@ -5,13 +5,7 @@ import { useTheme } from '@/lib/theme';
 import { Button } from '@/components/ui/Button';
 import { usePalette } from '@/components/PaletteProvider';
 
-export function TopBar({
-  railOpen,
-  onToggleRail,
-}: {
-  railOpen: boolean;
-  onToggleRail: () => void;
-}) {
+export function TopBar() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const openPalette = usePalette();
@@ -21,19 +15,6 @@ export function TopBar({
       className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--border)] px-6 backdrop-blur"
       style={{ background: 'color-mix(in srgb, var(--bg) 85%, transparent)' }}
     >
-      {/* Sidebar collapse toggle (desktop) */}
-      <button
-        onClick={onToggleRail}
-        aria-label={railOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-        title={railOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-        className="hidden h-10 w-10 flex-none items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-mute)] transition-colors hover:text-[var(--text)] md:inline-flex"
-      >
-        <svg viewBox="0 0 24 24" className="ic ic-sm" aria-hidden>
-          <rect x="3" y="4" width="18" height="16" rx="2" />
-          <path d="M9 4v16" />
-        </svg>
-      </button>
-
       {/* Search — fills all available space */}
       <button
         onClick={openPalette}
@@ -51,7 +32,7 @@ export function TopBar({
       </button>
 
       <div className="flex flex-none items-center gap-2">
-        {/* Theme toggle (moved here from the sidebar) */}
+        {/* Theme toggle */}
         <button
           onClick={toggle}
           aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}

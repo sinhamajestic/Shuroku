@@ -36,9 +36,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <PaletteProvider>
-      <div className={`min-h-dvh transition-[padding] duration-200 ${railOpen ? 'md:pl-rail' : ''}`}>
-        {railOpen && <Rail />}
-        <TopBar railOpen={railOpen} onToggleRail={() => setRailOpen((o) => !o)} />
+      <div
+        className={`min-h-dvh transition-[padding] duration-200 ${railOpen ? 'md:pl-rail' : 'md:pl-14'}`}
+      >
+        <Rail open={railOpen} onToggle={() => setRailOpen((o) => !o)} />
+        <TopBar />
         <main className="mx-auto w-full max-w-content px-6 py-12 pb-24 md:pb-12">{children}</main>
 
         {/* Mobile bottom tabs */}
