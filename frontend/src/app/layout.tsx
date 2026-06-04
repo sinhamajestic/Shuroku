@@ -7,10 +7,27 @@ export const metadata: Metadata = {
   description: 'Search, save, track, and watch your anime from one calm dashboard.',
 };
 
+// Runs before first paint so there's no flash of the wrong theme.
+// Uses a saved preference if present, otherwise follows the OS, defaulting to light.
+const themeScript = `
+(function () {
+  try {
+    var t = localStorage.getItem('shuroku-theme');
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.dataset.theme = t;
+  } catch (e) {
+    document.documentElement.dataset.theme = 'light';
+  }
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <link
           href="https://api.fontshare.com/v2/css?f[]=zodiak@400,500,700&f[]=satoshi@400,500,700&display=swap"
           rel="stylesheet"
